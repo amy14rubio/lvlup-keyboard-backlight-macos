@@ -1,40 +1,43 @@
 # LVLUP Keyboard Backlight Fix (macOS)
 
-Some LVLUP keyboards can't turn their backlight on when plugged into a Mac.
-This tool fixes that by letting you toggle the backlight using a key on the
-keyboard itself (by default, the key labeled "Screen Lock"). Once installed,
-it runs quietly in the background and just works - no app to open, nothing
-to remember.
+A small background tool that fixes LVLUP keyboards whose backlight won't
+turn on when plugged into a Mac.
+
+Once installed, press the **Screen Lock** key to toggle the backlight on
+or off. It runs automatically in the background - no app to open, nothing
+to run each time.
+
+## Compatibility
+
+Tested and confirmed working on the **LVLUP LU734**. Other LVLUP keyboards
+with a "Screen Lock" key that does nothing on macOS are likely built the
+same way and may also work, but haven't been confirmed. If yours is
+different, see **Using a different keyboard or key** below.
 
 ## Requirements
 
 - macOS
-- Xcode Command Line Tools (free). If you don't already have them, run this
-  in Terminal:
+- Xcode Command Line Tools (free). If you don't have them:
   ```
   xcode-select --install
   ```
 
 ## Installation
 
-1. Download this folder to your computer (anywhere is fine - Desktop,
-   Downloads, wherever).
-2. Open Terminal and navigate into the folder:
-   ```
-   cd path/to/this-folder
-   ```
-3. Run the installer:
+1. Download this project and unzip it anywhere (Desktop, Downloads, etc).
+2. Open Terminal, type `cd `, then drag the unzipped folder into the
+   Terminal window and press Enter.
+3. Run:
    ```
    ./install.sh
    ```
-4. macOS will require one manual step: go to **System Settings > Privacy &
-   Security > Input Monitoring**, find this program in the list, and turn it
-   on. (If it's not in the list yet, press your keyboard's trigger key once,
-   then check again.)
-5. Press the trigger key on your keyboard. The backlight should turn on/off.
+4. Go to **System Settings > Privacy & Security > Input Monitoring**, find
+   this program in the list, and turn it on. (If it's not listed yet, press
+   the Screen Lock key once, then check again.)
+5. Press the Screen Lock key - the backlight should toggle.
 
-Once set up, it starts automatically every time you log in and works
-whenever the keyboard is plugged in - you don't need to run anything again.
+That's it. It starts automatically every time you log in, and works
+whenever the keyboard is plugged in.
 
 ## Uninstalling
 
@@ -42,19 +45,42 @@ whenever the keyboard is plugged in - you don't need to run anything again.
 ./uninstall.sh
 ```
 
-This stops the background service. You can then delete the folder if you
-want to remove it completely.
+Then delete the folder if you want it fully removed.
+
+## Using a different keyboard or key
+
+The defaults already match the LVLUP LU734. If you have a different
+keyboard, or want to use a different key:
+
+1. Copy the config file: `cp kbled.env.example kbled.env`, then open it
+   with `open -e kbled.env`.
+2. **Find your keyboard's Vendor ID / Product ID:** with it plugged in, go
+   to  **Apple menu → About This Mac → More Info… → System Report… →
+   USB** (under Hardware). Click through the devices until you find your
+   keyboard, then note its **Vendor ID** and **Product ID** (shown like
+   `0x1234`) into `KBLED_VENDOR_ID` / `KBLED_PRODUCT_ID` in `kbled.env`.
+3. **Find which key to use:** install Karabiner-Elements (free,
+   karabiner-elements.pqrs.org), open Karabiner-EventViewer, and press your
+   chosen key - it shows a usage page and usage number to put into
+   `KBLED_TRIGGER_USAGE_PAGE` / `KBLED_TRIGGER_USAGE`. (You can remove
+   Karabiner afterward; it's only needed for this lookup.)
+4. **Find which LED bit controls the backlight:** run `./uninstall.sh`,
+   then try `./ledctl 01`, `./ledctl 00`, `./ledctl 02`, `./ledctl 00`,
+   `./ledctl 04`, `./ledctl 00`, watching the keyboard after each (`00`
+   always turns it off, so you can clearly see what changed). Put whichever
+   value worked into `KBLED_LED_ON_VALUE`.
+5. Run `./install.sh` again to rebuild and restart with your new settings.
 
 ## Troubleshooting
 
-**Pressing the key does nothing:**
-Double check the Input Monitoring permission from step 4 above. You can also
-check `listener.log` in this folder for error messages.
+**Pressing the key does nothing:** check `listener.log` in this folder. If
+it mentions "not permitted", the Input Monitoring permission (step 4 above)
+isn't on - enable it, then run `./uninstall.sh` followed by `./install.sh`.
+If it says the keyboard wasn't found, make sure it's plugged in.
 
-**You use Karabiner-Elements:**
-Karabiner may be grabbing your keyboard for its own remapping, which blocks
-this tool from reaching it. Open `~/.config/karabiner/karabiner.json` and add
-the following inside your profile (alongside anything already there):
+**You use Karabiner-Elements:** it grabs keyboards exclusively for its own
+remapping, which blocks this tool. Run `open -e ~/.config/karabiner/karabiner.json`,
+and inside your profile add (alongside anything already there):
 ```json
 "devices": [
     {
@@ -67,8 +93,23 @@ the following inside your profile (alongside anything already there):
     }
 ]
 ```
+Save the file - Karabiner picks up the change within a few seconds. This
+only affects this one keyboard, not your other Karabiner setup.
 
-**You have a different keyboard, or want to use a different key:**
-Open `kbled.env.example`, copy it to `kbled.env`, and follow the comments
-inside it - it walks through finding your keyboard's ID numbers and the key
-you want to use. Re-run `./install.sh` after editing.
+**Stopped working after a Mac restart or macOS update:** run `./install.sh`
+again. If that doesn't help, check `listener.log` and re-check the Input
+Monitoring permission - macOS occasionally resets it after an update.
+
+**Still stuck:** open an issue with what happens when you press the key,
+the contents of `listener.log`, and your keyboard model.
+
+## How it works
+
+This talks directly to the keyboard over USB using its standard HID
+protocol, sending the exact command that turns the backlight on or off. It
+runs as a background service that starts automatically at login.
+
+## Contributing
+
+Have a different LVLUP keyboard and know whether it works? Open an issue
+with your keyboard model.
